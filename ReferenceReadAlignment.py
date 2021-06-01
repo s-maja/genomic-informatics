@@ -333,7 +333,7 @@ import os
 # print("Hello world")
 
 
-# In[24]:
+# In[25]:
 
 
 fastaFilename = '/sbgenomics/project-files/reference.fasta'
@@ -347,7 +347,7 @@ mismatchs = [-3, -2]
 gaps = [-7, -5]
 
 
-# In[25]:
+# In[26]:
 
 
 referenceGenome = ''
@@ -364,7 +364,7 @@ for fastq in fastq_sequences:
     reads.append(sequence)
 
 
-# In[26]:
+# In[52]:
 
 
 def reverseComplement(read):
@@ -372,7 +372,7 @@ def reverseComplement(read):
     return seq.reverse_complement()
 
 
-# In[27]:
+# In[28]:
 
 
 def seedAndExtend(occ, c, sa, r, posOfSubstring, transcripts, alignmentScores, match, mismatch, gap):
@@ -400,10 +400,12 @@ def seedAndExtend(occ, c, sa, r, posOfSubstring, transcripts, alignmentScores, m
     return posOfSubstring, transcripts, alignmentScores
 
 
-# In[28]:
+# In[62]:
 
 
 import pickle
+import sys
+MIN_INT = -sys.maxsize - 1
 
 def getFileName(match, mismatch, gap):
     return "output_" + str(match) + "_" + str(mismatch) + "_" + str(gap) + ".txt"
@@ -426,32 +428,61 @@ def getTriplets(c, occ, sa, match, mismatch, gap):
     fileName = getFileName(match, mismatch, gap)
     resultTuples = []
     
+    total = 0
+    normal = 0
+    reverseComplementCnt = 0
+    noMatch = 0
+    
     with open(fileName, "w") as file1:
         for read in reads:          
             posOfSubstring = []
             transcripts = []
             alignmentScores = []
+            
+            maxScore = MIN_INT
+            
             posOfSubstring, transcripts, alignmentScores = seedAndExtend(occ,c,sa, read, posOfSubstring, transcripts, alignmentScores, match, mismatch, gap)
+            
+            if(len(alignmentScores) > 0):
+                maxScore = max(alignmentScores)
+            
             posOfSubstring, transcripts, alignmentScores = seedAndExtend(occ,c,sa, reverseComplement(read), posOfSubstring, transcripts, alignmentScores, match, mismatch, gap)
+            
+            if(len(alignmentScores)>0):
+                maxTemp = max(alignmentScores)
+                if(maxTemp > maxScore):
+                    reverseComplementCnt+=1
+                else:
+                    normal+=1
+            else:
+                if(MIN_INT != maxScore):
+                    normal+=1
+                else:
+                    noMatch+=1
+            
+            total += 1
             
             if len(posOfSubstring) > 0:
                 alignmentScores, transcripts, posOfSubstring = (list(t) for t in zip(*sorted(zip(alignmentScores, transcripts, posOfSubstring), reverse = True)))
-            else:
-                #DEBUG
-                print("NOT FOUND -->",names[i], read)
+            
 
             resultTuple = [read, posOfSubstring, transcripts, alignmentScores]
             file1.write(str(resultTuple)+ '\n')
             
             resultTuples.append(resultTuple)
             i +=1
-            
+
+    print("Total number of reads is", total)
+    print("Number of reads mapped normally", normal)
+    print("Number of reads mapped as reverse complement", reverseComplementCnt)
+    print("Number of non mapped reads", noMatch)
+    
     return resultTuples
 
 
 # #### read pickle files
 
-# In[29]:
+# In[30]:
 
 
 def readPickleFiles():
@@ -461,20 +492,20 @@ def readPickleFiles():
     return c, occ, sa
 
 
-# In[30]:
+# In[31]:
 
 
 # c, occ, sa = preCompute(referenceGenome)
 c, occ, sa = readPickleFiles()
 
 
-# In[31]:
+# In[32]:
 
 
 print(c)
 
 
-# In[32]:
+# In[33]:
 
 
 def getMatrixRow(numrot,refGenome):
@@ -486,7 +517,7 @@ def getMatrixRow(numrot,refGenome):
     return row
 
 
-# In[33]:
+# In[34]:
 
 
 #DEBUG
@@ -497,15 +528,15 @@ print(names[3608]) #error on this read
 #                        _TTAGTAGAGACAGGGTTTTGCAATGCTGGTCTCGAACTCATGAGCTCAT_T_CTGCCTGCCTCGGCTGGGATTACAGGCGTAAGCCACCGCA
 
 
-# In[34]:
+# In[64]:
 
 
 for match in matchs:
     for mismatch in mismatchs:
         for gap in gaps:
             print("Continuing")
-            #result = getTriplets(c, occ, sa, match, mismatch, gap)
-            #outputs[getFileName(match, mismatch, gap)] = result
+#             result = getTriplets(c, occ, sa, match, mismatch, gap)
+#             outputs[getFileName(match, mismatch, gap)] = result
 
 
 # ## Result visualization
